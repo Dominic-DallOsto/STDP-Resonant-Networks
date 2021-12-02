@@ -6,7 +6,6 @@ import bindsnet.learning
 from bindsnet.network.topology import (
 	AbstractConnection,
 	Connection,
-	Conv2dConnection,
 	LocalConnection,
 )
 
@@ -24,6 +23,7 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 		reduction: Optional[callable] = None,
 		weight_decay: float = 0.0,
 		gamma: float = 0.005,
+		constrain_nonnegative: bool = False,
 		**kwargs,
 	) -> None:
 		"""
@@ -35,6 +35,7 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 			dimension.
 		:param weight_decay: Coefficient controlling rate of decay of the weights each iteration.
 		:param gamma: Learning rate for homeostatic plasticity.
+		:param constrain_nonnegative: Whether the weights are constrained to be nonnegative (>=0).
 		"""
 		super().__init__(
 			connection=connection,
@@ -51,7 +52,9 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 			self.update = self._connection_update
 		else:
 			raise NotImplementedError("This learning rule is not supported for this Connection type.")
+		
 		self.gamma = gamma
+		self.constrain_nonnegative = constrain_nonnegative
 
 	def _connection_update(self, **kwargs) -> None:
 		"""
@@ -77,3 +80,6 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 			del source_x, target_s
 
 		super().update()
+
+		if self.constrain_nonnegative:
+			self.connection.w.clamp_(0)
