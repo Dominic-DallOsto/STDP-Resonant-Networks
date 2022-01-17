@@ -23,7 +23,6 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 		reduction: Optional[callable] = None,
 		weight_decay: float = 0.0,
 		gamma: float = 0.005,
-		constrain_nonnegative: bool = False,
 		**kwargs,
 	) -> None:
 		"""
@@ -35,7 +34,6 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 			dimension.
 		:param weight_decay: Coefficient controlling rate of decay of the weights each iteration.
 		:param gamma: Learning rate for homeostatic plasticity.
-		:param constrain_nonnegative: Whether the weights are constrained to be nonnegative (>=0).
 		"""
 		super().__init__(
 			connection=connection,
@@ -54,7 +52,6 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 			raise NotImplementedError("This learning rule is not supported for this Connection type.")
 		
 		self.gamma = gamma
-		self.constrain_nonnegative = constrain_nonnegative
 
 	def _connection_update(self, **kwargs) -> None:
 		"""
@@ -65,21 +62,4 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 		# homeostatic update: delta w_ij = -gamma r_post w_ij
 		self.connection.w -= self.reduction(self.gamma * self.target.r.view(batch_size, -1).unsqueeze(1) * self.connection.w, dim=0)
 
-		# Pre-synaptic update.
-		if self.nu[0]:
-			source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
-			target_x = self.target.x.view(batch_size, -1).unsqueeze(1) * self.nu[0]
-			self.connection.w -= self.reduction(torch.bmm(source_s, target_x), dim=0)
-			del source_s, target_x
-
-		# Post-synaptic update.
-		if self.nu[1]:
-			target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float() * self.nu[1]
-			source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
-			self.connection.w += self.reduction(torch.bmm(source_x, target_s), dim=0)
-			del source_x, target_s
-
-		super().update()
-
-		if self.constrain_nonnegative:
-			self.connection.w.clamp_(0)
+		super()._connection_update()
