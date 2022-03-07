@@ -59,7 +59,16 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 		"""
 		batch_size = self.source.batch_size
 
+		# todo: fix this!
 		# homeostatic update: delta w_ij = -gamma r_post w_ij
-		self.connection.w -= self.reduction(self.gamma * self.target.r.view(batch_size, -1).unsqueeze(1) * self.connection.w, dim=0)
+		if self.gamma:
+			# self.connection.w -= self.reduction(self.gamma * self.target.r.view(batch_size, -1).unsqueeze(1) * self.connection.w, dim=0)
+			self.connection.w -= self.reduction(self.gamma * self.target.r.view(batch_size, 1,self.target.n) * self.connection.w.view(batch_size, self.source.n, self.target.n), dim=0).reshape(*self.connection.w.shape)
+		# need to broadcast first dim (over all pre)
+		# w = 5 x 5 x 4
+		# r = 5 x 4
+		# normally -> 1 x 5 * 5 x 5 -> 5 x 5
+		# r = 5 -> [1,5] -> [1,1,5]
+		# w = 5 x 5
 
 		super()._connection_update()
