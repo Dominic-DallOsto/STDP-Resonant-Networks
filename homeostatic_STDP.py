@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Callable
 import torch
 
 import bindsnet.learning
@@ -20,7 +20,7 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 		self,
 		connection: AbstractConnection,
 		nu: Optional[Union[float, Sequence[float]]] = None,
-		reduction: Optional[callable] = None,
+		reduction: Optional[Callable] = None,
 		weight_decay: float = 0.0,
 		gamma: float = 0.005,
 		**kwargs,
@@ -59,16 +59,10 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 		"""
 		batch_size = self.source.batch_size
 
-		# todo: fix this!
 		# homeostatic update: delta w_ij = -gamma r_post w_ij
 		if self.gamma:
-			# self.connection.w -= self.reduction(self.gamma * self.target.r.view(batch_size, -1).unsqueeze(1) * self.connection.w, dim=0)
-			self.connection.w -= self.reduction(self.gamma * self.target.r.view(batch_size, 1,self.target.n) * self.connection.w.view(batch_size, self.source.n, self.target.n), dim=0).reshape(*self.connection.w.shape)
-		# need to broadcast first dim (over all pre)
-		# w = 5 x 5 x 4
-		# r = 5 x 4
-		# normally -> 1 x 5 * 5 x 5 -> 5 x 5
-		# r = 5 -> [1,5] -> [1,1,5]
-		# w = 5 x 5
+			r_post = self.target.r.view(batch_size, 1, self.target.n)
+			w = self.connection.w.view(batch_size, self.source.n, self.target.n)
+			self.connection.w -= self.reduction(self.gamma * r_post * w, dim=0).reshape(*self.connection.w.shape)
 
 		super()._connection_update()
