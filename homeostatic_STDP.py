@@ -66,3 +66,7 @@ class HomeostaticSTDP(bindsnet.learning.PostPre):
 			self.connection.w -= self.reduction(self.gamma * r_post * w, dim=0).reshape(*self.connection.w.shape)
 
 		super()._connection_update()
+
+	# neuron.x is the firing rate plasticity trace
+	# neuron.s is whether the neuron is spiking
+	# neuron.r is the (slow) homeostatic firing rate trace
